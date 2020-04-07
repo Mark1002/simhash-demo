@@ -1,10 +1,12 @@
 """Main file for demo."""
+import datetime
 import json
 from redis import StrictRedis
-from simhash import SimhashIndex, Simhash
+from simhash import Simhash
 from typing import List
 
-r = StrictRedis(db=3)
+r_md5_id_client = StrictRedis(db=2)
+r_simhash_client = StrictRedis(db=3)
 
 
 def load_documents() -> List[dict]:
@@ -39,19 +41,28 @@ def load_hash_table():
     return result
 
 
-def perform_simhash_filter(doc: dict, k: int):
+def perform_simhash_filter(doc: dict):
     """perform simhash filter."""
-    result = load_hash_table()
-    index = SimhashIndex(result, k=k)
-    s1 = Simhash(doc['content'])
-    dup_list = index.get_near_dups(s1)
-
-    if len(dup_list) > 0:
-        print(f"{doc['md5_id']} is near duplicate!")
+    if r_md5_id_client.exists(doc['md5_id']):
+        return
+    r_md5_id_client.setex(doc['md5_id'], datetime.timedelta(hours=24), 1)
+    bin_code = convert_simhash_bin_code(doc['content'])
+    bucket_len = len(bin_code) // 4
+    for i in range(0, len(bin_code), bucket_len):
+        bucket = bin_code[i:i+bucket_len]
+        print(f'bucket{i//bucket_len}:{bucket}')
+        if r_simhash_client.exists(bucket):
+            for i in range(r_simhash_client.llen(bucket)):
+                bin_code = r_simhash_client.lindex(bucket, i)
+                bin_code = bin_code.decode()
+                print(bin_code)
+        else:
+            r_simhash_client.lpush(bucket, bin_code)
+            r_simhash_client.expire(bucket, datetime.timedelta(hours=24))
+    pass
 
 
 if __name__ == '__main__':
-    perform_simhash_filter(doc={
-        'md5_id': 'md5_4',
-        'content': '早上8點，已從股市退休的政府4大基金前代操經理人黃伯伯，喝著香醇的咖啡',
-    }, k=3)
+    docs = load_documents()
+    for doc in docs[:1]:
+        perform_simhash_filter(doc)
