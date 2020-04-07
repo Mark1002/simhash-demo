@@ -20,6 +20,13 @@ def convert_simhash_bin_code(doc: str) -> str:
     return bin_code
 
 
+def compute_hmm_distance(bin1: str, bin2: str) -> int:
+    """compute hmm distance."""
+    assert len(bin1) == len(bin2)
+    dis = sum([int(bit1 != bit2) for bit1, bit2 in zip(bin1, bin2)])
+    return dis
+
+
 def load_hash_table():
     """load corpus."""
     # TODO change to load from redis
