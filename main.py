@@ -1,8 +1,10 @@
 """Main file for demo."""
-import hashlib
 import json
+from redis import StrictRedis
 from simhash import SimhashIndex, Simhash
 from typing import List
+
+r = StrictRedis(db=3)
 
 
 def load_documents() -> List[dict]:
@@ -12,22 +14,10 @@ def load_documents() -> List[dict]:
     return docs
 
 
-def make_vals_hash(doc: dict) -> str:
-    """Make redis MD5ID hash values for update condition."""
-    dic_copy = doc.copy()
-    del dic_copy['fetched_time']
-    del dic_copy['updated_time']
-    vals_hash = str(dic_copy.values()).encode('utf-8')
-    vals_hash = hashlib.md5(vals_hash).hexdigest()
-    print(f'vals_hash {vals_hash}')
-    return vals_hash
-
-
-def make_simhash():
-    docs = load_documents()
-    for doc in docs:
-        simhash = Simhash(doc['content'])
-        print(simhash.value)
+def convert_simhash_bin_code(doc: str) -> str:
+    """Convert to simhash bin code."""
+    bin_code = format(Simhash(doc).value, '064b')
+    return bin_code
 
 
 def load_hash_table():
