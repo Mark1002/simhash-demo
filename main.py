@@ -32,11 +32,12 @@ def compute_hmm_distance(bin1: str, bin2: str) -> int:
     return dis
 
 
-def perform_simhash_filter(doc: dict):
+def perform_simhash_filter(doc: dict) -> int:
     """perform simhash filter."""
+    print(f'created_time: {doc["created_time"]}')
     if r_md5_id_client.exists(doc['md5_id']):
         print('find exist md5_id!')
-        return
+        return 0
     r_md5_id_client.setex(doc['md5_id'], datetime.timedelta(hours=24), 1)
     bin_code = convert_simhash_bin_code(
         f'{doc["content"]}:{doc["created_time"]}'
@@ -44,12 +45,14 @@ def perform_simhash_filter(doc: dict):
     print(f'new coming bin code: {bin_code}')
     bucket_len = len(bin_code) // 4
     is_duplicate = False
+    # query all 4 parts 16 bits partition
     for i in range(0, len(bin_code), bucket_len):
         if is_duplicate:
-            break
+            return 1
         bucket = bin_code[i:i+bucket_len]
         if r_simhash_client.exists(bucket):
             print(f'hit bin code partition: {bucket}')
+            # find this 16 bits bucket one by one
             for i in range(r_simhash_client.llen(bucket)):
                 bin_code_old = r_simhash_client.lindex(bucket, i)
                 bin_code_old = bin_code_old.decode()
@@ -65,10 +68,15 @@ def perform_simhash_filter(doc: dict):
             r_simhash_client.lpush(bucket, bin_code)
             r_simhash_client.expire(bucket, datetime.timedelta(hours=24))
             print(f'create bucket{i//bucket_len}:{bucket}')
+    # miss all 16 bits bucket
+    return 0
 
 
 if __name__ == '__main__':
     # docs = load_documents()
-    docs = fake_doc_generator(3)
+    total = 1000
+    dup_num = 0
+    docs = fake_doc_generator(total)
     for doc in docs:
-        perform_simhash_filter(doc)
+        dup_num += perform_simhash_filter(doc)
+    print(f'near duplicate number: {dup_num}')
