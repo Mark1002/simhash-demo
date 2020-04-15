@@ -4,19 +4,12 @@ import datetime
 import json
 from redis import StrictRedis
 from simhash import Simhash
-from typing import List
 
-from fake_data import fake_doc_generator
+from fake_data import fake_doc_generator, load_documents
+from urllib.parse import urlparse
 
 r_md5_id_client = StrictRedis(db=2)
 r_simhash_client = StrictRedis(db=3)
-
-
-def load_documents() -> List[dict]:
-    """Load documents from json file."""
-    with open('docs.json', 'r') as file:
-        docs = json.loads(file.read())
-    return docs
 
 
 def convert_simhash_bin_code(doc: str) -> str:
@@ -43,6 +36,8 @@ def perform_simhash_filter(doc: dict) -> int:
         f'{doc["content"]}:{doc["created_time"]}'
     )
     print(f'new coming bin code: {bin_code}')
+    # channel net url
+    netloc = urlparse(doc['link']).netloc
     bucket_len = len(bin_code) // 4
     is_duplicate = False
     # query all 4 parts 16 bits partition
@@ -50,22 +45,27 @@ def perform_simhash_filter(doc: dict) -> int:
         if is_duplicate:
             return 1
         bucket = bin_code[i:i+bucket_len]
+        # hit this 16 bits bucket
         if r_simhash_client.exists(bucket):
             print(f'hit bin code partition: {bucket}')
             # find this 16 bits bucket one by one
             for i in range(r_simhash_client.llen(bucket)):
-                bin_code_old = r_simhash_client.lindex(bucket, i)
-                bin_code_old = bin_code_old.decode()
+                d = json.loads(r_simhash_client.lindex(bucket, i))
+                bin_code_old = d['bin_code']
                 print(f'old exist bin code: {bin_code_old}')
                 dis = compute_hmm_distance(bin_code, bin_code_old)
-                if dis <= 3:
+                if dis <= 3 and d['netloc'] == netloc:
                     print('find near duplicate!')
                     # remove near duplicate doc
                     # TODO
                     is_duplicate = True
                     break
         else:
-            r_simhash_client.lpush(bucket, bin_code)
+            d = {
+                'bin_code': bin_code,
+                'netloc': netloc
+            }
+            r_simhash_client.lpush(bucket, json.dumps(d))
             r_simhash_client.expire(bucket, datetime.timedelta(hours=24))
             print(f'create bucket{i//bucket_len}:{bucket}')
     # miss all 16 bits bucket
@@ -73,10 +73,9 @@ def perform_simhash_filter(doc: dict) -> int:
 
 
 if __name__ == '__main__':
-    # docs = load_documents()
-    total = 1000
     dup_num = 0
-    docs = fake_doc_generator(total)
+    # docs = load_documents()
+    docs = fake_doc_generator(num=100)
     for doc in docs:
         dup_num += perform_simhash_filter(doc)
     print(f'near duplicate number: {dup_num}')
