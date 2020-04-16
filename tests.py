@@ -5,6 +5,12 @@ from fake_data import fake_doc_generator
 from sim_hash import perform_simhash_filter
 
 
+def setup_function(function):
+    """Set up function."""
+    r = StrictRedis()
+    r.flushall()
+
+
 def test_same_hash_but_differ_netloc():
     """Test the same hash but differ netloc."""
     dup_num = 0

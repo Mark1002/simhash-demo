@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Fake data for near duplicate."""
+import copy
 import datetime
 import json
 import random
@@ -29,11 +30,15 @@ def gen_random_fid() -> str:
     return fids[random.randint(0, len(fids)-1)]
 
 
-def fake_doc_generator(num: int) -> iter:
+def fake_doc_generator(num: int, same_doc: bool = False) -> iter:
     """Fake gen."""
     docs = load_documents()
+    doc = docs[random.randint(0, len(docs)-1)]
     for _ in range(num):
-        doc = docs[random.randint(0, len(docs)-1)]
+        if same_doc:
+            doc = copy.copy(doc)
+        else:
+            doc = docs[random.randint(0, len(docs)-1)]
         doc['uid'] = gen_random_fid()
         doc['created_time'] = gen_datetime(min_year=2019).strftime("%Y-%m-%d %H:%M:%S") # noqa
         doc['md5_id'] = secrets.token_hex(nbytes=16)

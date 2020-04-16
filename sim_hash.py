@@ -5,7 +5,7 @@ import json
 from redis import StrictRedis
 from simhash import Simhash
 
-from fake_data import fake_doc_generator, load_documents
+from fake_data import fake_doc_generator
 from urllib.parse import urlparse
 
 r_md5_id_client = StrictRedis(db=2)
@@ -32,12 +32,12 @@ def perform_simhash_filter(doc: dict) -> int:
         print('find exist md5_id!')
         return 0
     r_md5_id_client.setex(doc['md5_id'], datetime.timedelta(hours=24), 1)
+    netloc = urlparse(doc['link']).netloc
     bin_code = convert_simhash_bin_code(
-        f'{doc["content"]}:{doc["created_time"]}'
+        f'{doc["created_time"]}:{doc["content"]}:{doc["article_layer"]}:{doc["source"]}:{doc["uid"]}:{doc["author_id"]}:{netloc}:{doc["title"]}' # noqa
     )
     print(f'new coming bin code: {bin_code}')
     # channel net url
-    netloc = urlparse(doc['link']).netloc
     bucket_len = len(bin_code) // 4
     is_duplicate = False
     # query all 4 parts 16 bits partition
@@ -54,6 +54,7 @@ def perform_simhash_filter(doc: dict) -> int:
                 bin_code_old = d['bin_code']
                 print(f'old exist bin code: {bin_code_old}')
                 dis = compute_hmm_distance(bin_code, bin_code_old)
+                print(f'distance: {dis}')
                 if dis <= 3 and d['netloc'] == netloc:
                     print('find near duplicate!')
                     # remove near duplicate doc
