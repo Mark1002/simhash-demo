@@ -57,6 +57,7 @@ def perform_simhash_filter(doc: dict) -> int:
                 if dis <= 3 and d['netloc'] == netloc:
                     print('find near duplicate!')
                     # remove near duplicate doc
+                    r_md5_id_client.delete(doc['md5_id'])
                     # TODO
                     is_duplicate = True
                     break
