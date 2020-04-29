@@ -2,6 +2,7 @@
 """Main file for demo."""
 import datetime
 import json
+from log_service import logging
 from redis import StrictRedis
 from simhash import Simhash
 
@@ -25,51 +26,50 @@ def compute_hmm_distance(bin1: str, bin2: str) -> int:
     return dis
 
 
-def perform_simhash_filter(doc: dict) -> int:
-    """perform simhash filter."""
-    print(f'created_time: {doc["created_time"]}')
+def perform_simhash_filter(doc: dict, hmm_dis: int = 3) -> int:
+    """Perform simhash filter."""
     if r_md5_id_client.exists(doc['md5_id']):
-        print('find exist md5_id!')
+        logging.debug('find exist md5_id!')
         return 0
     r_md5_id_client.setex(doc['md5_id'], datetime.timedelta(hours=24), 1)
+    # channel net url
     netloc = urlparse(doc['link']).netloc
     bin_code = convert_simhash_bin_code(
         f'{doc["created_time"]}:{doc["content"]}:{doc["article_layer"]}:{doc["source"]}:{doc["uid"]}:{doc["author_id"]}:{netloc}:{doc["title"]}' # noqa
     )
-    print(f'new coming bin code: {bin_code}')
-    # channel net url
+    logging.debug(f'new coming bin code: {bin_code}')
     bucket_len = len(bin_code) // 4
-    is_duplicate = False
     # query all 4 parts 16 bits partition
     for i in range(0, len(bin_code), bucket_len):
-        if is_duplicate:
-            return 1
-        bucket = bin_code[i:i+bucket_len]
+        bucket = bin_code[i:i + bucket_len]
         # hit this 16 bits bucket
         if r_simhash_client.exists(bucket):
-            print(f'hit bin code partition: {bucket}')
+            logging.debug(f'hit bin code partition: {bucket}')
             # find this 16 bits bucket one by one
             for i in range(r_simhash_client.llen(bucket)):
                 d = json.loads(r_simhash_client.lindex(bucket, i))
                 bin_code_old = d['bin_code']
-                print(f'old exist bin code: {bin_code_old}')
+                logging.debug(f'old exist bin code: {bin_code_old}')
                 dis = compute_hmm_distance(bin_code, bin_code_old)
-                print(f'distance: {dis}')
-                if dis <= 3 and d['netloc'] == netloc:
-                    print('find near duplicate!')
+                logging.debug(f'distance: {dis}')
+                if dis <= hmm_dis and d['netloc'] == netloc:
+                    logging.warning(f"find near duplicate on md5_id: {d['md5_id']}") # noqa
                     # remove near duplicate doc
                     r_md5_id_client.delete(doc['md5_id'])
-                    # TODO
-                    is_duplicate = True
-                    break
+                    if r_md5_id_client.setnx('dup_counter', 0):
+                        r_md5_id_client.expire('dup_counter', datetime.timedelta(hours=24)) # noqa
+                    r_md5_id_client.incr('dup_counter')
+                    logging.warning(f"duplicate count: {r_md5_id_client.get('dup_counter').decode()}") # noqa
+                    return 1
         else:
             d = {
                 'bin_code': bin_code,
-                'netloc': netloc
+                'netloc': netloc,
+                'md5_id': doc['md5_id']
             }
             r_simhash_client.lpush(bucket, json.dumps(d))
             r_simhash_client.expire(bucket, datetime.timedelta(hours=24))
-            print(f'create bucket{i//bucket_len}:{bucket}')
+            logging.debug(f'create bucket{i//bucket_len}:{bucket}')
     # miss all 16 bits bucket
     return 0
 

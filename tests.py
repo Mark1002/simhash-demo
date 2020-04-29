@@ -1,6 +1,7 @@
 """Tests for simhash filter."""
 import secrets
 from redis import StrictRedis
+from log_service import logging
 from fake_data import fake_doc_generator
 from sim_hash import perform_simhash_filter
 
@@ -21,6 +22,15 @@ def test_same_hash_but_differ_netloc():
     doc['md5_id'] = secrets.token_hex(nbytes=16)
     dup_num += perform_simhash_filter(doc)
     assert dup_num == 0
+
+
+def test_duplicate_docs():
+    """Test fake duplicate docs."""
+    dup_num = 0
+    docs = fake_doc_generator(num=100)
+    for doc in docs:
+        dup_num += perform_simhash_filter(doc, hmm_dis=3)
+    logging.debug(f'near duplicate number: {dup_num}')
 
 
 def teardown_function(function):
