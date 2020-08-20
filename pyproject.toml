@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "simhash-demo"
+name = "sim_hash_demo"
 version = "0.1.0"
 description = "an simhash demo project"
 authors = ["Mark Chang <ak0922747401@gmail.com>"]
