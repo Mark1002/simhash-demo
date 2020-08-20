@@ -2,7 +2,7 @@
 """Main file for demo."""
 import datetime
 import json
-from log_service import logging
+from .log_service import logging
 from redis import StrictRedis
 from simhash import Simhash
 
