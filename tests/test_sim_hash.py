@@ -2,8 +2,8 @@
 import secrets
 from redis import StrictRedis
 from log_service import logging
-from fake_data import fake_doc_generator, load_documents
-from sim_hash import perform_simhash_filter
+from .fake_data import fake_doc_generator, load_documents
+from sim_hash_demo import perform_simhash_filter
 
 
 def setup_function(function):

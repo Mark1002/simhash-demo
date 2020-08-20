@@ -6,7 +6,6 @@ from log_service import logging
 from redis import StrictRedis
 from simhash import Simhash
 
-from fake_data import load_documents, fake_doc_generator
 from urllib.parse import urlparse
 
 r_md5_id_client = StrictRedis(db=2)
@@ -72,12 +71,3 @@ def perform_simhash_filter(doc: dict, hmm_dis: int = 3) -> int:
             logging.debug(f'create bucket{i//bucket_len}:{bucket}')
     # miss all 16 bits bucket
     return 0
-
-
-if __name__ == '__main__':
-    dup_num = 0
-    docs = load_documents(400, 500)
-    docs = fake_doc_generator(docs=docs, num=100)
-    for doc in docs:
-        dup_num += perform_simhash_filter(doc)
-    logging.debug(f'near duplicate number: {dup_num}')

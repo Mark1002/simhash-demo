@@ -13,7 +13,7 @@ def load_documents(
     word_lower_size: int, word_upper_size: int
 ) -> List[dict]:
     """Load documents from json file."""
-    with open('data/docs.json', 'r') as file:
+    with open('tests/data/docs.json', 'r') as file:
         docs = json.loads(file.read())
     results = []
     for doc in docs:
