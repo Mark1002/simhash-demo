@@ -7,7 +7,7 @@ authors = ["Mark Chang <ak0922747401@gmail.com>"]
 [tool.poetry.dependencies]
 python = "^3.7"
 simhash = "1.9.0"
-redis = "3.4.1"
+redis = "4.5.3"
 pytest = "5.4.1"
 colorlog = "4.0.2"
 
